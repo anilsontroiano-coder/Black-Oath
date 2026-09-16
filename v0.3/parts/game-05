@@ -1,0 +1,117 @@
+ntListener('click', () => { if (selecionado === null) {
+            selecionado = i;
+            mostrarCorvo();
+        }
+        else if (selecionado === i) {
+            selecionado = null;
+            mostrarCorvo();
+        }
+        else {
+            trocar(selecionado, i);
+        } });
+    });
+}
+function trocar(a, b) {
+    [run.itens[a], run.itens[b]] = [run.itens[b], run.itens[a]];
+    [run.melhorias[a], run.melhorias[b]] = [run.melhorias[b], run.melhorias[a]];
+    selecionado = null;
+    salvar();
+    mostrarCorvo();
+}
+class SimulacaoBatalha {
+    constructor(jogadorConfig, inimigoConfig) {
+        this.tempo = 0;
+        this.finalizada = false;
+        this.vencedor = null;
+        this.eventos = [];
+        this.proximoCorvo = 9;
+        this.proximaCondenacao = 31;
+        this.nivelCondenacao = 1;
+        this.ativaçõesJogador = 0;
+        this.jogador = this.criar(jogadorConfig, true);
+        this.inimigo = this.criar(inimigoConfig, false);
+        if (run.juramento === 'ganancia')
+            this.inimigo.danoMultiplicador *= 1.10;
+    }
+    criar(c, jogador) {
+        const itens = c.itens.map((id, i) => {
+            const def = ITENS[id];
+            let mul = 1;
+            if (jogador)
+                mul *= .90; // Lua Negra
+            if (jogador && run.juramento === 'cinzas' && def.categoria !== 'Arma')
+                mul *= .85;
+            const estado = { def, restante: def.recarga * mul, multiplicadorRecarga: mul, nivel: c.melhorias?.[i] ?? 0, desabilitadoAte: 0, cargas: 0 };
+            return estado;
+        });
+        itens.forEach((x, i) => { const haste = x.def.pressaDireita; const direita = itens[i + 1]; if (haste && direita?.def.efeito) {
+            direita.multiplicadorRecarga *= (1 - haste);
+            direita.restante *= (1 - haste);
+        } });
+        return { nome: c.nome, vida: c.vidaMax, vidaMax: c.vidaMax, escudo: 0, marcadoAte: 0, itens, danoMultiplicador: c.danoMultiplicador ?? 1 };
+    }
+    atualizar(dt) {
+        if (this.finalizada)
+            return;
+        this.tempo += dt;
+        if (this.tempo >= this.proximoCorvo) {
+            this.inimigo.marcadoAte = Math.max(this.inimigo.marcadoAte, this.tempo + 4);
+            this.proximoCorvo += 9;
+            this.eventos.push({ tempo: this.tempo, ator: 'jogador', texto: 'Corvo de Carniça marcou o adversário.' });
+        }
+        if (this.tempo >= this.proximaCondenacao) {
+            const dano = 5 * this.nivelCondenacao;
+            this.jogador.vida = Math.max(0, this.jogador.vida - dano);
+            this.inimigo.vida = Math.max(0, this.inimigo.vida - dano);
+            this.eventos.push({ tempo: this.tempo, ator: 'sistema', texto: `Condenação causa ${dano} de dano aos dois.` });
+            this.nivelCondenacao++;
+            this.proximaCondenacao++;
+            this.checar();
+        }
+        if (this.finalizada)
+            return;
+        this.tick(this.jogador, this.inimigo, 'jogador', dt);
+        if (!this.finalizada)
+            this.tick(this.inimigo, this.jogador, 'inimigo', dt);
+    }
+    tick(ator, alvo, nomeAtor, dt) {
+        ator.itens.forEach((item, indice) => {
+            if (this.finalizada || !item.def.efeito || item.desabilitadoAte > this.tempo)
+                return;
+            if (item.def.ativaAbaixo && ator.vida / ator.vidaMax > item.def.ativaAbaixo)
+                return;
+            item.restante -= dt;
+            if (item.restante <= 0) {
+                this.ativar(item, indice, ator, alvo, nomeAtor);
+                item.restante += item.def.recarga * item.multiplicadorRecarga;
+            }
+        });
+    }
+    dano(alvo, valor) {
+        const marcado = alvo.marcadoAte > this.tempo ? 1.15 : 1;
+        let total = Math.round(valor * marcado);
+        const absorvido = Math.min(alvo.escudo, total);
+        alvo.escudo -= absorvido;
+        total -= absorvido;
+        alvo.vida = Math.max(0, alvo.vida - total);
+        return total + absorvido;
+    }
+    ativar(item, indice, ator, alvo, nomeAtor) {
+        const e = item.def.efeito;
+        const nivel = 1 + item.nivel * .15;
+        let danoMult = ator.danoMultiplicador;
+        if (nomeAtor === 'jogador' && run.juramento === 'sangue' && item.def.categoria === 'Arma')
+            danoMult *= 1.25;
+        if (e.tipo === 'dano') {
+            const d = this.dano(alvo, e.valor * nivel * danoMult);
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} causou ${d} de dano.` });
+        }
+        else if (e.tipo === 'escudo') {
+            const v = Math.round(e.valor * nivel);
+            ator.escudo += v;
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} concedeu ${v} de Escudo.` });
+        }
+        else if (e.tipo === 'marca') {
+            alvo.marcadoAte = Math.max(alvo.marcadoAte, this.tempo + e.duracao);
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} aplicou Marca.` });
+    
