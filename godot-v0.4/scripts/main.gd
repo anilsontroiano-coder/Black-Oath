@@ -199,7 +199,7 @@ func _executar_duelo() -> void:
 
     log_box.visible = true
     var linhas: Array[String] = resultado.logs
-    var inicio := max(0, linhas.size() - 16)
+    var inicio: int = maxi(0, linhas.size() - 16)
     log_box.text = "\n".join(linhas.slice(inicio))
 
     if resultado.vitoria:
