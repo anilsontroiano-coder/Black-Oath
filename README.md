@@ -1,50 +1,11 @@
-# Black Oath — Protótipo v0.2
+# BLACK OATH
 
-Protótipo mobile estratégico dark fantasy inspirado no loop de runs e auto-battler, com regras e identidade próprias.
+Jogo estratégico de fantasia sombria para celular Android. A versão atual de desenvolvimento é **v0.5, em Godot 4 + GDScript**, com interface vertical em português.
 
-## Stack
-- TypeScript
-- Phaser 3
-- Vite
-- UI HTML/CSS sobre o canvas
-- Simulação de combate separada da renderização
+- **Projeto atual:** [`godot-v0.5/`](godot-v0.5/)
+- **Regras, execução e arquitetura:** [`godot-v0.5/README.md`](godot-v0.5/README.md)
+- **Gerar APK:** processo [BLACK OATH v0.5 · Testes e APK Godot](../../actions/workflows/godot-v05.yml)
 
-## O que entrou na v0.2
-- Run estruturada em: Escolha → Escolha → Caçada → Escolha → Duelo
-- 12 itens, incluindo itens fantasiosos do universo
-- 6 tipos de encontros
-- Mercador com compra por Ouro
-- Mercador de Sangue com compra por Vida Máxima
-- Ferreiro com melhorias de item
-- Capela para reduzir Corrupção
-- Bosque com escolhas de itens
-- Sistema de Corrupção influenciando raridade e dificuldade
-- Caçadas PvE com risco e recompensas diferentes
-- Duelo contra bots com arquétipos de build
-- O Corvo revela informações parciais do próximo oponente
-- Reorganização do tabuleiro antes do Duelo tocando em dois itens
-- Mais efeitos de combate: banimento temporário, auto-sacrifício, aceleração adjacente, cargas e explosões
-- Quatro cenários diferentes usados conforme a etapa da run
-- Interface otimizada para tela vertical de celular
+O ciclo jogável inclui Juramentos, escolhas, Caçadas, Corrupção, Preço de Sangue, O Corvo, preparação, Duelo e progressão até o Rei sem Sombra. O combate funciona separado da interface e pode ser simulado sem renderização.
 
-## Rodar
-```bash
-npm install
-npm run dev
-```
-
-## Build
-```bash
-npm run build
-```
-
-## Próximo alvo
-- Relíquias e Familiares
-- O Juramento no início de cada Ciclo
-- Chefe final da run
-- Arrastar itens no tabuleiro
-- Áudio e efeitos visuais de ativação
-- Salvamento local
-
-## Android / APK
-O projeto também está preparado para empacotamento Android com Capacitor 8. Consulte `GERAR-APK-NO-CELULAR.md`. O workflow `.github/workflows/build-android-apk.yml` gera um APK instalável pelo GitHub Actions.
+As pastas `godot-v0.4`, `v0.3` e o pacote v0.2 preservam versões anteriores. O processo antigo de APK da v0.3 continua separado. O desenvolvimento novo não usa HTML como base.

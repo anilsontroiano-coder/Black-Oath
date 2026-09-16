@@ -1,0 +1,110 @@
+name: BLACK OATH v0.5 · Testes e APK Godot
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'godot-v0.5/**'
+      - '.github/workflows/godot-v05.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-v05-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar-e-exportar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GODOT_VERSION: '4.4.1'
+      PROJETO: godot-v0.5
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Instalar Godot oficial e modelos Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot-bin"
+          chmod +x "$RUNNER_TEMP/godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          ln -s "$RUNNER_TEMP/godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$RUNNER_TEMP/godot-bin/godot"
+          echo "$RUNNER_TEMP/godot-bin" >> "$GITHUB_PATH"
+          curl --fail --location --retry 3 "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -o "$RUNNER_TEMP/modelos.tpz"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -jq "$RUNNER_TEMP/modelos.tpz" 'templates/android_debug.apk' 'templates/android_release.apk' -d "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+      - name: Importar e verificar sem avisos de GDScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path "$PROJETO" --editor --quit 2>&1 | tee "$RUNNER_TEMP/importacao.log"
+          if grep -E 'SCRIPT ERROR|Parse Error|ERROR:' "$RUNNER_TEMP/importacao.log"; then exit 1; fi
+          timeout 120 godot --headless --path "$PROJETO" --script testes/verificar.gd
+          timeout 120 godot --headless --path "$PROJETO" --script testes/interface.gd
+          timeout 120 godot --headless --path "$PROJETO" --script testes/jornadas.gd
+          godot --headless --path "$PROJETO" --quit-after 5 2>&1 | tee "$RUNNER_TEMP/abertura.log"
+          if grep -E 'SCRIPT ERROR|ERROR:' "$RUNNER_TEMP/abertura.log"; then exit 1; fi
+      - name: Capturar telas do jogo
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a godot --path "$PROJETO" --audio-driver Dummy -- --captura 2>&1 | tee "$RUNNER_TEMP/interface.log"
+          if grep -E 'SCRIPT ERROR|ERROR:' "$RUNNER_TEMP/interface.log"; then exit 1; fi
+          mkdir -p pacotes/telas
+          cp "$HOME/.local/share/godot/app_userdata/BLACK OATH/capturas/"*.png pacotes/telas/
+      - name: Configurar exportação Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o "$RUNNER_TEMP/android-ferramentas.zip"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          unzip -q "$RUNNER_TEMP/android-ferramentas.zip" -d "$ANDROID_HOME/cmdline-tools"
+          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          # O produtor pode receber SIGPIPE quando todas as licenças forem aceitas.
+          # Mantemos a falha do sdkmanager, sem tratar esse encerramento de yes como erro.
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > "$RUNNER_TEMP/licencas-android.log"
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
+          mkdir -p "$HOME/.config/godot"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          settings = Path(os.environ['HOME']) / '.config/godot/editor_settings-4.4.tres'
+          text = settings.read_text() if settings.exists() else '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n'
+          for key, value in [('export/android/android_sdk_path', os.environ['ANDROID_HOME']), ('export/android/java_sdk_path', os.environ['JAVA_HOME'])]:
+              text += f'\n{key} = "{value}"\n'
+          settings.write_text(text)
+          PY
+      - name: Gerar APK instalável e código-fonte
+        shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          set -euo pipefail
+          mkdir -p pacotes
+          godot --headless --path "$PROJETO" --export-debug Android "$GITHUB_WORKSPACE/pacotes/BLACK-OATH-v0.5.apk"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose pacotes/BLACK-OATH-v0.5.apk
+          git archive --format=zip --output=pacotes/BLACK-OATH-v0.5-fonte.zip HEAD godot-v0.5
+          sha256sum pacotes/*.apk pacotes/*.zip > pacotes/SHA256SUMS.txt
+      - name: Disponibilizar APK, projeto e telas
+        uses: actions/upload-artifact@v4
+        with:
+          name: BLACK-OATH-v0.5-Android
+          path: pacotes/
+          if-no-files-found: error
+          retention-days: 30
