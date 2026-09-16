@@ -1,0 +1,97 @@
+rupcao + 3);
+    salvar();
+    escolherJuramento();
+}
+function escolherJuramento() {
+    fundo('catedral');
+    app.innerHTML = `${cabecalho()}<main class="screen oath-screen">
+    <div class="section-title"><small>ANTES DO CAMINHO</small><h2>Escolha seu Juramento</h2><p>Ele dura até o fim deste ciclo.</p></div>
+    <div class="oath-grid">${Object.keys(JURAMENTOS).map(id => `<button class="oath-card" data-oath="${id}"><span>${id === 'sangue' ? '♥' : id === 'cinzas' ? '✣' : '◉'}</span><b>${JURAMENTOS[id].nome}</b><p>${JURAMENTOS[id].descricao}</p><em>${JURAMENTOS[id].custo}</em></button>`).join('')}</div>
+    ${equipamentoExtra()}
+  </main>`;
+    document.querySelectorAll('[data-oath]').forEach(btn => btn.addEventListener('click', () => aplicarJuramento(btn.dataset.oath)));
+}
+function aplicarJuramento(id) {
+    run.juramento = id;
+    if (id === 'sangue')
+        run.vidaMax = Math.max(45, run.vidaMax - 8);
+    if (id === 'cinzas')
+        run.corrupcao = Math.min(100, run.corrupcao + 8);
+    if (id === 'ganancia')
+        run.ouro += 8;
+    salvar();
+    mostrarEscolha();
+}
+function retomar() {
+    if (run.chefeLiberado)
+        return mostrarChefeIntro();
+    if (!run.juramento)
+        return escolherJuramento();
+    if (run.etapa === 2)
+        return mostrarCacada();
+    if (run.etapa >= 4)
+        return mostrarCorvo();
+    mostrarEscolha();
+}
+const EVENTOS = {
+    ferreiro: { nome: 'Ferreiro Silencioso', descricao: 'Metal frio ainda responde ao martelo.', efeito: 'Melhore um item', simbolo: '⚒' },
+    mercador: { nome: 'Mercador Errante', descricao: 'Quatro rodas, nenhum cavalo.', efeito: 'Compre um item', simbolo: '◇' },
+    poco: { nome: 'Poço dos Sussurros', descricao: 'A água conhece seu nome.', efeito: '+7 Ouro, -10 Vida Máx.', simbolo: '◉' },
+    bosque: { nome: 'Bosque Retorcido', descricao: 'Algo pulsa entre as raízes.', efeito: 'Encontre um item', simbolo: '♜' },
+    capela: { nome: 'Capela Esquecida', descricao: 'Ainda existe luz.', efeito: 'Purifique-se', simbolo: '✧' },
+    sangue: { nome: 'Mercador de Sangue', descricao: 'Ele não aceita moedas.', efeito: 'Compre com Vida', simbolo: '♥' },
+};
+function aleatorio(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function embaralhar(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function mostrarEscolha() {
+    fundo('floresta');
+    const ids = embaralhar(Object.keys(EVENTOS)).slice(0, 3);
+    app.innerHTML = `${cabecalho()}<main class="screen choice-screen">${progresso()}
+    <div class="section-title"><small>O CAMINHO SE DIVIDE</small><h2>Escolha onde entrar</h2></div>
+    <div class="choices">${ids.map(id => `<button class="choice" data-event="${id}"><div class="choice-rune">${EVENTOS[id].simbolo}</div><b>${EVENTOS[id].nome}</b><span>${EVENTOS[id].descricao}</span><em>${EVENTOS[id].efeito}</em></button>`).join('')}</div>
+    ${tabuleiroJogador()}
+  </main>`;
+    document.querySelectorAll('[data-event]').forEach(b => b.addEventListener('click', () => resolverEvento(b.dataset.event)));
+}
+function avancar() {
+    run.etapa += 1;
+    salvar();
+    if (run.determinacao <= 0)
+        return fimDeJogo(false);
+    if (run.etapa === 2)
+        return mostrarCacada();
+    if (run.etapa >= 4)
+        return mostrarCorvo();
+    mostrarEscolha();
+}
+function resolverEvento(id) {
+    if (id === 'ferreiro')
+        return mostrarFerreiro();
+    if (id === 'mercador')
+        return mostrarMercador(false);
+    if (id === 'sangue')
+        return mostrarMercador(true);
+    if (id === 'poco') {
+        run.vidaMax = Math.max(45, run.vidaMax - 10);
+        run.ouro += 7;
+        run.corrupcao = Math.min(100, run.corrupcao + 7);
+        return resultadoEvento('O poço bebeu uma parte de você.', '+7 Ouro · -10 Vida Máxima · +7 Corrupção');
+    }
+    if (id === 'bosque')
+        return mostrarAchados();
+    mostrarCapela();
+}
+function resultadoEvento(titulo, texto) {
+    salvar();
+    app.innerHTML = `${cabecalho()}<main class="screen centered-screen"><div class="result-emblem">◈</div><h2>${titulo}</h2><p>${texto}</p><button class="primary" id="seguir">CONTINUAR</button></main>`;
+    document.querySelector('#seguir')?.addEventListener('click', avancar);
+}
+function mostrarFerreiro() {
+    fundo('fortaleza');
+    app.innerHTML = `${cabecalho()}<main class="screen shop-screen">${progresso()}<div class="section-title"><small>FERREIRO SILENCIOSO</small><h2>Escolha o metal</h2></div><p class="hint">Cada melhoria fortalece o efeito principal em 15%.</p>${tabuleiroJogador(undefined, true)}<button class="secondary" id="sair">IR EMBORA</button></main>`;
+    document.querySelectorAll('.board-grid.interactive .item-card').forEach(c => c.addEventListener('click', () => {
+        const i = Number(c.dataset.index);
+        run.melhorias[i] = Math.min(3, (run.melhorias[i] ?? 0) + 1);
+        resultadoEvento(`${ITENS[run.itens[i]].nome} foi reforçado.`, `Nível de melhoria: +${run.melhorias[i]}.`);
+    }));
+    document.quer
