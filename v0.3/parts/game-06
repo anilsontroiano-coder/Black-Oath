@@ -1,0 +1,92 @@
+    }
+        else if (e.tipo === 'adiantar_lento') {
+            const candidatos = ator.itens.filter(x => x.def.efeito && x !== item);
+            const lento = [...candidatos].sort((a, b) => b.restante - a.restante)[0];
+            if (lento)
+                lento.restante = Math.max(.05, lento.restante - e.segundos);
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} roubou ${e.segundos}s do futuro.` });
+        }
+        else if (e.tipo === 'auto_dano') {
+            ator.vida = Math.max(0, ator.vida - e.proprio);
+            const d = this.dano(alvo, e.alvo * nivel * danoMult);
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} cobrou ${e.proprio} de Vida e causou ${d}.` });
+        }
+        else if (e.tipo === 'banir') {
+            const ativos = alvo.itens.filter(x => x.def.efeito && x.desabilitadoAte <= this.tempo);
+            const escolhido = [...ativos].sort((a, b) => a.restante - b.restante)[0];
+            if (escolhido) {
+                escolhido.desabilitadoAte = this.tempo + e.duracao;
+                this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} apagou ${escolhido.def.nome} por ${e.duracao}s.` });
+            }
+        }
+        else if (e.tipo === 'adiantar_adjacente') {
+            [ator.itens[indice - 1], ator.itens[indice + 1]].forEach(x => { if (x?.def.efeito)
+                x.restante = Math.max(.05, x.restante - e.segundos); });
+            const d = this.dano(alvo, e.dano * nivel * danoMult);
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} causou ${d} e devorou o tempo vizinho.` });
+        }
+        else if (e.tipo === 'adiantar_categoria') {
+            let qtd = 0;
+            ator.itens.forEach(x => { if (x !== item && x.def.categoria === e.categoria && x.def.efeito) {
+                x.restante = Math.max(.05, x.restante - e.segundos);
+                qtd++;
+            } });
+            this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} adiantou ${qtd} item(ns) ${e.categoria}.` });
+        }
+        else if (e.tipo === 'explosao_cargas') {
+            item.cargas++;
+            if (item.cargas >= e.cargas) {
+                item.cargas = 0;
+                const d = this.dano(alvo, e.dano * nivel * danoMult);
+                this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} rompeu o céu e causou ${d}.` });
+            }
+            else
+                this.eventos.push({ tempo: this.tempo, ator: nomeAtor, texto: `${item.def.nome} acumulou carga ${item.cargas}/${e.cargas}.` });
+        }
+        if (nomeAtor === 'jogador') {
+            this.ativaçõesJogador++;
+            if (batalhaTipo === 'chefe' && this.ativaçõesJogador % 3 === 0 && !this.finalizada) {
+                const d = this.dano(this.jogador, 8);
+                this.eventos.push({ tempo: this.tempo, ator: 'inimigo', texto: `O Rei sem Sombra imitou o eco da sua ativação e causou ${d}.` });
+            }
+        }
+        this.checar();
+    }
+    checar() {
+        const j = this.jogador.vida <= 0, i = this.inimigo.vida <= 0;
+        if (!j && !i)
+            return;
+        this.finalizada = true;
+        this.vencedor = j && i ? 'empate' : i ? 'jogador' : 'inimigo';
+        this.eventos.push({ tempo: this.tempo, ator: 'sistema', texto: this.vencedor === 'jogador' ? 'Vitória.' : this.vencedor === 'inimigo' ? 'Derrota.' : 'Empate.' });
+    }
+}
+function configJogador() { return { nome: 'O Errante', vidaMax: run.vidaMax, itens: [...run.itens], melhorias: [...run.melhorias] }; }
+function iniciarBatalha(tipo, inimigo) {
+    batalhaTipo = tipo;
+    velocidadeBatalha = 1;
+    fundo(tipo === 'caçada' ? 'floresta' : tipo === 'chefe' ? 'fortaleza' : 'catedral');
+    const sim = new SimulacaoBatalha(configJogador(), inimigo);
+    let ultimo = performance.now();
+    let ultimaTela = 0;
+    const loop = (agora) => {
+        const dtReal = Math.min((agora - ultimo) / 1000, .05);
+        ultimo = agora;
+        sim.atualizar(dtReal * velocidadeBatalha);
+        if (agora - ultimaTela > 90 || sim.finalizada) {
+            renderBatalha(sim);
+            ultimaTela = agora;
+        }
+        if (!sim.finalizada)
+            requestAnimationFrame(loop);
+        else
+            setTimeout(() => finalizarBatalha(sim.vencedor), 650);
+    };
+    requestAnimationFrame(loop);
+}
+function miniInimigos(estado) {
+    return `<div class="enemy-board">${estado.itens.map((x, i) => `<div class="enemy-item ${classeRaridade(x.def.id)}"><span>${SIMBOLOS[x.def.id]}</span><b>${x.def.nome}</b><i><em style="width:${x.def.efeito ? Math.max(0, Math.min(100, 100 * (1 - x.restante / (x.def.recarga * x.multiplicadorRecarga)))) : 100}%"></em></i></div>`).join('')}</div>`;
+}
+function renderBatalha(sim) {
+    const e = sim.inimigo, j = sim.jogador;
+    app.innerHTML = `${cabecalho()}<main class="screen battle-screen"><section cl
