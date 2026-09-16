@@ -1,0 +1,29 @@
+"use strict";
+const ITENS = {
+    lamina_desgastada: { id: 'lamina_desgastada', nome: 'Lâmina Desgastada', categoria: 'Arma', raridade: 'Comum', recarga: 6, preco: 5, descricao: 'A cada 6s, causa 12 de dano.', efeito: { tipo: 'dano', valor: 12 } },
+    vela_funeraria: { id: 'vela_funeraria', nome: 'Vela Funerária', categoria: 'Ritual', raridade: 'Comum', recarga: 999, preco: 5, descricao: 'O item à direita carrega 15% mais rápido.', pressaDireita: 0.15 },
+    corrente_ferro: { id: 'corrente_ferro', nome: 'Corrente de Ferro', categoria: 'Defesa', raridade: 'Comum', recarga: 8, preco: 5, descricao: 'A cada 8s, recebe 10 de Escudo.', efeito: { tipo: 'escudo', valor: 10 } },
+    lanterna_negra: { id: 'lanterna_negra', nome: 'Lanterna Negra', categoria: 'Sombrio', raridade: 'Raro', recarga: 7, preco: 9, descricao: 'A cada 7s, Marca o adversário por 4s.', efeito: { tipo: 'marca', duracao: 4 } },
+    machado_carrasco: { id: 'machado_carrasco', nome: 'Machado do Carrasco', categoria: 'Arma', raridade: 'Raro', recarga: 9, preco: 10, descricao: 'A cada 9s, causa 30 de dano.', efeito: { tipo: 'dano', valor: 30 } },
+    estrela_adormecida: { id: 'estrela_adormecida', nome: 'Estrela Adormecida', categoria: 'Cósmico', raridade: 'Épico', recarga: 18, preco: 16, descricao: 'Desperta lentamente e causa 50 de dano.', efeito: { tipo: 'dano', valor: 50 } },
+    ampulheta_sem_areia: { id: 'ampulheta_sem_areia', nome: 'Ampulheta sem Areia', categoria: 'Tempo', raridade: 'Raro', recarga: 10, preco: 9, descricao: 'Adianta em 3s o item ativo mais lento.', efeito: { tipo: 'adiantar_lento', segundos: 3 } },
+    segundo_coracao: { id: 'segundo_coracao', nome: 'Segundo Coração', categoria: 'Carne', raridade: 'Raro', recarga: 6, preco: 10, descricao: 'Abaixo de 50% de Vida, você sofre 3 e o inimigo sofre 14.', ativaAbaixo: 0.5, efeito: { tipo: 'auto_dano', proprio: 3, alvo: 14 } },
+    porta_lugar_nenhum: { id: 'porta_lugar_nenhum', nome: 'Porta para Lugar Nenhum', categoria: 'Vazio', raridade: 'Épico', recarga: 12, preco: 17, descricao: 'Faz o item inimigo mais carregado desaparecer por 3s.', efeito: { tipo: 'banir', duracao: 3 } },
+    verme_amanha: { id: 'verme_amanha', nome: 'Verme que Devora o Amanhã', categoria: 'Tempo', raridade: 'Épico', recarga: 8, preco: 15, descricao: 'Causa 12 de dano e adianta os itens vizinhos em 1s.', efeito: { tipo: 'adiantar_adjacente', segundos: 1, dano: 12 } },
+    frasco_meia_noite: { id: 'frasco_meia_noite', nome: 'Frasco da Meia-Noite', categoria: 'Sombrio', raridade: 'Raro', recarga: 9, preco: 10, descricao: 'Adianta todos os itens Sombrios em 2s.', efeito: { tipo: 'adiantar_categoria', categoria: 'Sombrio', segundos: 2 } },
+    fragmento_sol_morto: { id: 'fragmento_sol_morto', nome: 'Fragmento do Sol Morto', categoria: 'Cósmico', raridade: 'Lendário', recarga: 6, preco: 24, descricao: 'Acumula 3 cargas e então explode por 56 de dano.', efeito: { tipo: 'explosao_cargas', cargas: 3, dano: 56 } },
+};
+const SIMBOLOS = {
+    lamina_desgastada: '†', vela_funeraria: '✣', corrente_ferro: '≋', lanterna_negra: '◈', machado_carrasco: '⚒', estrela_adormecida: '✦',
+    ampulheta_sem_areia: '⌛', segundo_coracao: '♥', porta_lugar_nenhum: '⌑', verme_amanha: '∿', frasco_meia_noite: '◐', fragmento_sol_morto: '☼',
+};
+const JURAMENTOS = {
+    sangue: { nome: 'Juramento de Sangue', descricao: 'Armas causam 25% mais dano neste ciclo.', custo: '-8 Vida Máxima imediatamente.' },
+    cinzas: { nome: 'Juramento das Cinzas', descricao: 'Itens que não são Armas carregam 15% mais rápido.', custo: '+8 Corrupção imediatamente.' },
+    ganancia: { nome: 'Juramento da Ganância', descricao: 'Receba 8 de Ouro agora.', custo: 'Adversários causam 10% mais dano neste ciclo.' },
+};
+const CACADAS_BASE = [
+    { id: 'rato', nome: 'Rato de Túmulo', perigo: 'Baixo', descricao: 'Pequeno, faminto e rápido. Uma presa segura.', config: { nome: 'Rato de Túmulo', vidaMax: 72, itens: ['lamina_desgastada', 'corrente_ferro'] }, recompensa: { ouro: 4, chanceItem: 0.15 } },
+    { id: 'cavaleiro', nome: 'Cavaleiro sem Rosto', perigo: 'Médio', descricao: 'Avança devagar por trás de ferro morto.', config: { nome: 'Cavaleiro sem Rosto', vidaMax: 104, itens: ['corrente_ferro', 'machado_carrasco', 'lamina_desgastada'] }, recompensa: { ouro: 7, chanceItem: 0.4 } },
+    { id: 'devorador', nome: 'Devorador de Velas', perigo: 'Alto', descricao: 'O tempo trabalha a favor dele.', config: { nome: 'Devorador de Velas', vidaMax: 118, itens: ['verme_amanha', 'lanterna_negra', 'machado_carrasco', 'corrente_ferro'], danoMultiplicador: 1.08 }, recompensa: { ouro: 10, corrupcao: 4, chanceItem: 0.7 } },
+    { id: 'santo', nome: 'Santo Oco', perigo: 'Alto', descricao: 'Uma estátua que aprendeu a respirar.', config: { nome: 'Santo Oco', vidaMax: 126, itens: ['porta_lugar_nenhum', 'corrente_ferro', 'estrela_adormecida', 'ampulheta_sem_areia'], danoMultiplicador: 1.05 }, recompensa: { ouro: 11, corrupcao: 6, chanceItem:
