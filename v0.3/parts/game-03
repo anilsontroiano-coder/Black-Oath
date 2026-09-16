@@ -1,0 +1,51 @@
+ySelector('#sair')?.addEventListener('click', avancar);
+}
+function pesoRaridade(r) { return r === 'Comum' ? 65 : r === 'Raro' ? 28 : r === 'Épico' ? 6 : 1; }
+function itemAleatorio(excluir = []) {
+    const pool = Object.keys(ITENS).filter(id => !excluir.includes(id));
+    const pesos = pool.map(id => ({ id, p: pesoRaridade(ITENS[id].raridade) + (ITENS[id].raridade === 'Lendário' ? run.corrupcao * .16 : ITENS[id].raridade === 'Épico' ? run.corrupcao * .08 : ITENS[id].raridade === 'Raro' ? run.corrupcao * .03 : 0) }));
+    let rolagem = Math.random() * pesos.reduce((s, x) => s + x.p, 0);
+    for (const x of pesos) {
+        rolagem -= x.p;
+        if (rolagem <= 0)
+            return x.id;
+    }
+    return pesos[pesos.length - 1].id;
+}
+function ofertas() { const r = []; while (r.length < 3)
+    r.push(itemAleatorio(r)); return r; }
+function custoSangue(id) { const r = ITENS[id].raridade; return r === 'Lendário' ? 18 : r === 'Épico' ? 14 : r === 'Raro' ? 10 : 7; }
+function mostrarMercador(sangue, lista = ofertas()) {
+    fundo('acampamento');
+    app.innerHTML = `${cabecalho()}<main class="screen shop-screen">${progresso()}<div class="section-title"><small>${sangue ? 'MERCADOR DE SANGUE' : 'MERCADOR ERRANTE'}</small><h2>${sangue ? 'O preço não é ouro' : 'Algo lhe interessa?'}</h2></div>
+    <div class="shop-grid">${lista.map(id => { const d = ITENS[id], c = sangue ? custoSangue(id) : d.preco; return `<button class="shop-item ${classeRaridade(id)}" data-buy="${id}" data-cost="${c}"><span class="big-symbol">${SIMBOLOS[id]}</span><b>${d.nome}</b><small>${d.descricao}</small><em>${sangue ? `${c} Vida Máx.` : `${c} Ouro`}</em></button>`; }).join('')}</div><button class="secondary" id="sair">NÃO COMPRAR</button></main>`;
+    document.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.buy, custo = Number(b.dataset.cost);
+        if (!sangue && run.ouro < custo)
+            return aviso('Ouro insuficiente.');
+        if (sangue && run.vidaMax - custo < 45)
+            return aviso('Você não sobreviveria ao preço.');
+        escolherSubstituicao(id, () => { if (sangue) {
+            run.vidaMax -= custo;
+            run.corrupcao = Math.min(100, run.corrupcao + 6);
+        }
+        else
+            run.ouro -= custo; avancar(); }, sangue ? `${custo} de Vida Máxima` : `${custo} de Ouro`, () => mostrarMercador(sangue, lista));
+    }));
+    document.querySelector('#sair')?.addEventListener('click', avancar);
+}
+function mostrarAchados(lista = ofertas()) {
+    fundo('floresta');
+    app.innerHTML = `${cabecalho()}<main class="screen shop-screen">${progresso()}<div class="section-title"><small>BOSQUE RETORCIDO</small><h2>Três coisas observaram você</h2></div><div class="shop-grid">${lista.map(id => `<button class="shop-item ${classeRaridade(id)}" data-found="${id}"><span class="big-symbol">${SIMBOLOS[id]}</span><b>${ITENS[id].nome}</b><small>${ITENS[id].descricao}</small><em>+5 Corrupção</em></button>`).join('')}</div></main>`;
+    document.querySelectorAll('[data-found]').forEach(b => b.addEventListener('click', () => escolherSubstituicao(b.dataset.found, () => { run.corrupcao = Math.min(100, run.corrupcao + 5); avancar(); }, 'sem custo de Ouro', () => mostrarAchados(lista))));
+}
+function mostrarCapela() {
+    fundo('catedral');
+    app.innerHTML = `${cabecalho()}<main class="screen centered-screen">${progresso()}<div class="result-emblem">✧</div><h2>Capela Esquecida</h2><p>Uma chama branca ainda arde diante do altar rachado.</p><div class="vertical-actions"><button class="choice-wide" id="purificar"><b>TOCAR A CHAMA</b><span>-15 Corrupção</span></button><button class="choice-wide" id="oferta"><b>DEIXAR UMA MOEDA</b><span>-3 Ouro · +6 Vida Máxima</span></button></div></main>`;
+    document.querySelector('#purificar')?.addEventListener('click', () => { run.corrupcao = Math.max(0, run.corrupcao - 15); resultadoEvento('O ruído dentro da sua cabeça diminuiu.', '-15 Corrupção'); });
+    document.querySelector('#oferta')?.addEventListener('click', () => { if (run.ouro < 3)
+        return aviso('Você não tem Ouro suficiente.'); run.ouro -= 3; run.vidaMax += 6; resultadoEvento('A chama reconheceu a oferta.', '+6 Vida Máxima'); });
+}
+function escolherSubstituicao(id, confirmar, custo, cancelar) {
+    app.innerHTML = `${cabecalho()}<main class="screen replace-screen"><div class="section-title"><small>NOVO ITEM</small><h2>${ITENS[id].nome}</h2></div><div class="new-item-preview ${classeRaridade(id)}"><span>${SIMBOLOS[id]}</span><b>${ITENS[id].nome}</b><p>${ITENS[id].descricao}</p><em>${custo}</em></div><p class="hint">Escolha o item que será substituído.</p>${tabuleiroJogador(undefined, true)}<button class="secondary" id="cancelar">CANCELAR</button></main>`;
+    document.querySelectorAll('.board-grid.interactive .item-card').forEach(c => c.addEventListener('click', () => { const i = Number(c.dataset.index); run.itens[i] = id; run.melhorias[i] 
