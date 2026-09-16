@@ -1,0 +1,80 @@
+ass="enemy-panel"><div><small>${batalhaTipo === 'caçada' ? 'CRIATURA' : batalhaTipo === 'chefe' ? 'CHEFE FINAL' : 'ADVERSÁRIO'}</small><h2>${e.nome}</h2></div><div class="enemy-stats"><b>${Math.ceil(e.vida)}/${e.vidaMax}</b><span>${Math.round(e.escudo)} Escudo</span></div></section>${miniInimigos(e)}<div class="battle-clock">${sim.tempo.toFixed(1)}s ${sim.tempo >= 30 ? '• CONDENAÇÃO' : ''}<button id="speed">${velocidadeBatalha}x</button></div>${tabuleiroJogador(j, false, sim.tempo)}<section class="combat-log">${sim.eventos.slice(-6).map(x => `<p class="${x.ator}">[${x.tempo.toFixed(1)}] ${x.texto}</p>`).join('')}</section></main>`;
+    document.querySelector('#speed')?.addEventListener('click', () => { velocidadeBatalha = velocidadeBatalha === 1 ? 2 : 1; });
+}
+function finalizarBatalha(v) {
+    const ganhou = v === 'jogador';
+    if (batalhaTipo === 'caçada') {
+        if (ganhou && cacadaAtual) {
+            run.ouro += cacadaAtual.recompensa.ouro;
+            run.corrupcao = Math.min(100, run.corrupcao + (cacadaAtual.recompensa.corrupcao ?? 0));
+            salvar();
+            const drop = Math.random() < (cacadaAtual.recompensa.chanceItem ?? 0);
+            if (drop)
+                return recompensaCacada(itemAleatorio(), cacadaAtual.recompensa.ouro);
+            return resultadoBatalha(true, `+${cacadaAtual.recompensa.ouro} Ouro`, () => { cacadaAtual = null; avancar(); });
+        }
+        run.determinacao -= 1;
+        salvar();
+        return resultadoBatalha(false, '-1 Determinação', () => { cacadaAtual = null; avancar(); });
+    }
+    if (batalhaTipo === 'chefe') {
+        if (ganhou)
+            return fimDeJogo(true);
+        run.determinacao -= 3;
+        run.chefeLiberado = false;
+        run.vitorias = Math.max(0, ALVO_VITORIAS - 1);
+        salvar();
+        return resultadoBatalha(false, '-3 Determinação · o Rei ainda espera', () => { if (run.determinacao <= 0)
+            fimDeJogo(false);
+        else {
+            run.ciclo++;
+            iniciarCiclo();
+        } });
+    }
+    if (ganhou) {
+        run.vitorias++;
+        const ouro = 5 + run.ciclo;
+        run.ouro += ouro;
+        salvar();
+        resultadoBatalha(true, `+${ouro} Ouro`, aposDuelo);
+    }
+    else {
+        run.determinacao -= 2;
+        salvar();
+        resultadoBatalha(false, '-2 Determinação', aposDuelo);
+    }
+}
+function recompensaCacada(id, ouro) {
+    app.innerHTML = `${cabecalho()}<main class="screen centered-screen"><div class="result-emblem">✦</div><h2>A criatura deixou algo para trás</h2><div class="new-item-preview ${classeRaridade(id)}"><span>${SIMBOLOS[id]}</span><b>${ITENS[id].nome}</b><p>${ITENS[id].descricao}</p></div><p>Você também recebeu ${ouro} de Ouro.</p><div class="vertical-actions"><button class="primary" id="pegar">SUBSTITUIR UM ITEM</button><button class="secondary" id="deixar">DEIXAR PARA TRÁS</button></div></main>`;
+    document.querySelector('#pegar')?.addEventListener('click', () => escolherSubstituicao(id, () => { cacadaAtual = null; avancar(); }, 'recompensa da Caçada', () => recompensaCacada(id, ouro)));
+    document.querySelector('#deixar')?.addEventListener('click', () => { cacadaAtual = null; avancar(); });
+}
+function resultadoBatalha(ganhou, texto, seguir) {
+    app.innerHTML = `${cabecalho()}<main class="screen result-screen"><div class="result-emblem">${ganhou ? '✦' : '✕'}</div><h1>${ganhou ? 'VITÓRIA' : 'DERROTA'}</h1><p>${texto}</p><button class="primary" id="seguir">CONTINUAR</button></main>`;
+    document.querySelector('#seguir')?.addEventListener('click', seguir);
+}
+function aposDuelo() {
+    botPendente = null;
+    inteligenciaPendente = null;
+    if (run.determinacao <= 0)
+        return fimDeJogo(false);
+    if (run.vitorias >= ALVO_VITORIAS) {
+        run.chefeLiberado = true;
+        salvar();
+        return mostrarChefeIntro();
+    }
+    run.ciclo++;
+    iniciarCiclo();
+}
+function mostrarChefeIntro() {
+    fundo('fortaleza');
+    app.innerHTML = `${cabecalho()}<main class="screen boss-screen"><div class="boss-crown">♛</div><small>CAÇADA FINAL</small><h1>Rei sem Sombra</h1><p>Ele aprendeu a viver no espaço onde sua própria sombra deveria existir.</p><div class="boss-rule"><b>REGRA DO CHEFE</b><span>A cada terceira ativação dos seus itens, o Rei imita o eco e devolve dano.</span></div><button class="primary" id="enfrentar">ENFRENTAR O REI</button></main>`;
+    document.querySelector('#enfrentar')?.addEventListener('click', () => iniciarBatalha('chefe', CHEFE));
+}
+function fimDeJogo(completou) {
+    fundo(completou ? 'fortaleza' : 'catedral');
+    if (completou)
+        apagarSave();
+    else
+        salvar();
+    app.innerHTML = `${cabecalho()}<main class="screen result-screen"><div class="result-emblem">${completou ? '♛' : '†'}</div><h1>${completou ? 'JORNADA CONCLUÍDA' : 'O JURAMENTO TERMINOU'}</h1><p>${completou ? 'O Rei sem Sombra caiu. Por enquanto, a estrada termina aqui.' : `Você chegou ao Ciclo ${run.ciclo} com ${run.vito
