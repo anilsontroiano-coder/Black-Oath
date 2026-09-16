@@ -1,0 +1,8 @@
+{
+  "appId": "com.blackoath.game",
+  "appName": "Black Oath",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
