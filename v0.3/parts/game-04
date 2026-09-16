@@ -1,0 +1,51 @@
+= 0; salvar(); confirmar(); }));
+    document.querySelector('#cancelar')?.addEventListener('click', cancelar);
+}
+function cacadasDoCiclo() {
+    return embaralhar(CACADAS_BASE).slice(0, 3).map(c => ({ ...c, config: { ...c.config, vidaMax: c.config.vidaMax + (run.ciclo - 1) * 5 + Math.floor(run.corrupcao / 25) * 3, danoMultiplicador: (c.config.danoMultiplicador ?? 1) + (run.ciclo - 1) * .025 } }));
+}
+function mostrarCacada() {
+    fundo('floresta');
+    const lista = cacadasDoCiclo();
+    app.innerHTML = `${cabecalho()}<main class="screen hunt-screen">${progresso()}<div class="section-title"><small>CAÇADA</small><h2>Escolha o que seguir</h2></div><div class="hunt-list">${lista.map((c, i) => `<button class="hunt-card" data-hunt="${i}"><div><span>${c.perigo}</span><b>${c.nome}</b></div><p>${c.descricao}</p><em>Recompensa: ${c.recompensa.ouro} Ouro${c.recompensa.chanceItem ? ' · chance de item' : ''}</em></button>`).join('')}</div>${tabuleiroJogador()}</main>`;
+    document.querySelectorAll('[data-hunt]').forEach(b => b.addEventListener('click', () => { cacadaAtual = lista[Number(b.dataset.hunt)]; iniciarBatalha('caçada', cacadaAtual.config); }));
+}
+function botAleatorio() {
+    const tiers = [
+        [{ nome: 'Sombra da Estrada', vidaMax: 82, itens: ['vela_funeraria', 'lamina_desgastada', 'corrente_ferro'] }, { nome: 'Vigia sem Rosto', vidaMax: 86, itens: ['lanterna_negra', 'lamina_desgastada', 'corrente_ferro'] }],
+        [{ nome: 'Carrasco Errante', vidaMax: 98, itens: ['vela_funeraria', 'machado_carrasco', 'corrente_ferro', 'lamina_desgastada'] }, { nome: 'Filho do Relógio', vidaMax: 96, itens: ['ampulheta_sem_areia', 'lamina_desgastada', 'corrente_ferro', 'lanterna_negra'] }],
+        [{ nome: 'Tecelão do Vazio', vidaMax: 103, itens: ['porta_lugar_nenhum', 'lanterna_negra', 'ampulheta_sem_areia', 'lamina_desgastada'] }, { nome: 'Devorador de Amanhãs', vidaMax: 106, itens: ['verme_amanha', 'frasco_meia_noite', 'lanterna_negra', 'machado_carrasco'] }],
+        [{ nome: 'Vigia da Lua Morta', vidaMax: 112, itens: ['lanterna_negra', 'estrela_adormecida', 'corrente_ferro', 'ampulheta_sem_areia'] }, { nome: 'Herdeiro do Sol Morto', vidaMax: 116, itens: ['fragmento_sol_morto', 'porta_lugar_nenhum', 'corrente_ferro', 'lanterna_negra'] }],
+    ];
+    const tier = Math.min(3, Math.max(0, run.ciclo - 1 + Math.floor(run.corrupcao / 50)));
+    const fonte = aleatorio(tiers[tier]);
+    const nivel = Math.max(0, Math.min(2, run.ciclo - 2 + Math.floor(run.corrupcao / 45)));
+    return { nome: `${fonte.nome} · Ciclo ${run.ciclo}`, vidaMax: fonte.vidaMax + (run.ciclo - 1) * 3 + Math.floor(run.corrupcao / 30) * 2, itens: [...fonte.itens], melhorias: nivel ? fonte.itens.map(() => nivel) : undefined, danoMultiplicador: (fonte.danoMultiplicador ?? 1) + (run.ciclo - 1) * .025 + Math.floor(run.corrupcao / 35) * .02 };
+}
+function intelBot(bot) {
+    const cats = bot.itens.map(i => ITENS[i].categoria);
+    const contagem = new Map();
+    cats.forEach(c => contagem.set(c, (contagem.get(c) ?? 0) + 1));
+    const principal = [...contagem.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Desconhecida';
+    return [`Afinidade principal: ${principal}.`, `Vida estimada: ${bot.vidaMax}.`, `Usa ${bot.itens.length} itens no tabuleiro.`, bot.itens.some(i => ITENS[i].raridade === 'Épico' || ITENS[i].raridade === 'Lendário') ? 'Há pelo menos um item de alta raridade.' : 'Não há sinais de item de alta raridade.'];
+}
+function mostrarCorvo() {
+    fundo('fortaleza');
+    if (!botPendente)
+        botPendente = botAleatorio();
+    if (!inteligenciaPendente)
+        inteligenciaPendente = embaralhar(intelBot(botPendente)).slice(0, 2);
+    app.innerHTML = `${cabecalho()}<main class="screen scout-screen">${progresso()}<div class="section-title"><small>O CORVO RETORNOU</small><h2>Ele viu alguma coisa</h2></div><div class="scout-wrap"><img class="raven-big" src="assets/ui/familiar-corvo.svg"><div class="intel-box">${inteligenciaPendente.map(x => `<p>◈ ${x}</p>`).join('')}</div></div><p class="hint">Arraste um item sobre outro, ou toque em dois itens, para trocar as posições.</p>${tabuleiroJogador(undefined, true)}<button class="primary" id="duelo">INICIAR DUELO</button></main>`;
+    bindReordenacao();
+    document.querySelector('#duelo')?.addEventListener('click', () => { selecionado = null; iniciarBatalha('duelo', botPendente); });
+}
+function bindReordenacao() {
+    const cards = Array.from(document.querySelectorAll('.board-grid.interactive .item-card'));
+    cards.forEach(card => {
+        const i = Number(card.dataset.index);
+        if (selecionado === i)
+            card.classList.add('selected');
+        card.addEventListener('dragstart', (e) => { e.dataTransfer?.setData('text/plain', String(i)); });
+        card.addEventListener('dragover', (e) => e.preventDefault());
+        card.addEventListener('drop', (e) => { e.preventDefault(); const de = Number(e.dataTransfer?.getData('text/plain')); trocar(de, i); });
+        card.addEve
