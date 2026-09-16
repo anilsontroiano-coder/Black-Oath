@@ -1,11 +1,11 @@
-name: Gerar APK Black Oath
+name: Gerar APK Black Oath v0.3
 
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
     paths:
-      - '*.zip'
+      - 'v0.3/**'
       - '.github/workflows/build-apk.yml'
 
 jobs:
@@ -29,34 +29,38 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Localizar e extrair projeto
+      - name: Preparar cenários da v0.3
         shell: bash
         run: |
-          ZIP=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
-          if [ -z "$ZIP" ]; then
-            echo 'ERRO: envie o ZIP preparado do Black Oath para a raiz do repositório.'
+          set -e
+          if [ ! -f black-oath-v0.2-android-ready.zip ]; then
+            echo 'ERRO: o pacote v0.2 usado como banco dos cenários não foi encontrado.'
             exit 1
           fi
-          mkdir -p extracted
-          unzip -q "$ZIP" -d extracted
-          PROJECT=$(find extracted -name package.json -printf '%h\n' | head -n 1)
-          if [ -z "$PROJECT" ]; then
-            echo 'ERRO: package.json não encontrado dentro do ZIP.'
+          rm -rf legacy-assets
+          mkdir -p legacy-assets
+          unzip -q black-oath-v0.2-android-ready.zip -d legacy-assets
+          ENV_FILE=$(find legacy-assets -type f -name 'floresta-azul.png' | head -n 1)
+          if [ -z "$ENV_FILE" ]; then
+            echo 'ERRO: os cenários não foram encontrados dentro do pacote v0.2.'
             exit 1
           fi
-          echo "PROJECT_DIR=$PROJECT" >> "$GITHUB_ENV"
+          ENV_DIR=$(dirname "$ENV_FILE")
+          mkdir -p v0.3/assets/environment
+          cp "$ENV_DIR"/*.png v0.3/assets/environment/
+          echo "Cenários copiados de $ENV_DIR"
 
       - name: Instalar dependências
         run: npm install
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: v0.3
 
-      - name: Compilar jogo
+      - name: Montar versão web
         run: npm run build
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: v0.3
 
       - name: Criar projeto Android
         shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
+        working-directory: v0.3
         run: |
           if [ ! -d android ]; then
             npx cap add android
@@ -65,7 +69,7 @@ jobs:
 
       - name: Gerar APK instalável
         shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}/android
+        working-directory: v0.3/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -73,11 +77,11 @@ jobs:
       - name: Preparar APK
         shell: bash
         run: |
-          cp "${PROJECT_DIR}/android/app/build/outputs/apk/debug/app-debug.apk" Black-Oath-v0.2.apk
+          cp v0.3/android/app/build/outputs/apk/debug/app-debug.apk Black-Oath-v0.3.apk
 
       - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Black-Oath-v0.2-APK
-          path: Black-Oath-v0.2.apk
+          name: Black-Oath-v0.3-APK
+          path: Black-Oath-v0.3.apk
           if-no-files-found: error
