@@ -1,0 +1,23 @@
+; Engine configuration file.
+; Black Oath v0.4 - Godot 4
+config_version=5
+
+[application]
+config/name="Black Oath"
+run/main_scene="res://scenes/main.tscn"
+
+[display]
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=720
+window/size/window_height_override=1280
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/canvas_textures/default_texture_filter=0
+
+[autoload]
+GameState="*res://scripts/game_state.gd"
