@@ -65,7 +65,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          export ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o "$RUNNER_TEMP/android-ferramentas.zip"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          unzip -q "$RUNNER_TEMP/android-ferramentas.zip" -d "$ANDROID_HOME/cmdline-tools"
+          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          # O produtor pode receber SIGPIPE quando todas as licenças forem aceitas.
+          # Mantemos a falha do sdkmanager, sem tratar esse encerramento de yes como erro.
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > "$RUNNER_TEMP/licencas-android.log"
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "build-tools;34.0.0" "platforms;android-34"
           keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000
           mkdir -p "$HOME/.config/godot"
           python3 - <<'PY'
@@ -87,6 +98,7 @@ jobs:
           set -euo pipefail
           mkdir -p pacotes
           godot --headless --path "$PROJETO" --export-debug Android "$GITHUB_WORKSPACE/pacotes/BLACK-OATH-v0.5.apk"
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose pacotes/BLACK-OATH-v0.5.apk
           git archive --format=zip --output=pacotes/BLACK-OATH-v0.5-fonte.zip HEAD godot-v0.5
           sha256sum pacotes/*.apk pacotes/*.zip > pacotes/SHA256SUMS.txt
       - name: Disponibilizar APK, projeto e telas
