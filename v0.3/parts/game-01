@@ -1,0 +1,104 @@
+ 0.8 } },
+];
+const CHEFE = {
+    nome: 'Rei sem Sombra', vidaMax: 178,
+    itens: ['porta_lugar_nenhum', 'fragmento_sol_morto', 'corrente_ferro', 'machado_carrasco'],
+    melhorias: [1, 1, 1, 1], danoMultiplicador: 1.08, chefe: true,
+};
+const app = document.querySelector('#app');
+const ALVO_VITORIAS = 4;
+const SAVE_KEY = 'black-oath-v03-save';
+let run = novaRun();
+let botPendente = null;
+let inteligenciaPendente = null;
+let cacadaAtual = null;
+let batalhaTipo = 'duelo';
+let velocidadeBatalha = 1;
+let selecionado = null;
+function novaRun() {
+    return {
+        ciclo: 1, vitorias: 0, determinacao: 8, ouro: 10, vidaMax: 100, corrupcao: 0,
+        itens: ['vela_funeraria', 'lamina_desgastada', 'corrente_ferro', 'lanterna_negra'],
+        melhorias: [0, 0, 0, 0], etapa: 0, juramento: null, chefeLiberado: false,
+        reliquia: 'lua_negra', familiar: 'corvo_carnica',
+    };
+}
+function salvar() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(run));
+}
+function apagarSave() { localStorage.removeItem(SAVE_KEY); }
+function carregar() {
+    try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    }
+    catch {
+        return null;
+    }
+}
+function fundo(nome) {
+    app.dataset.bg = nome;
+}
+function classeRaridade(id) {
+    return ITENS[id].raridade.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function cabecalho() {
+    return `<header class="hud-top">
+    <div><span>CICLO</span><strong>${run.ciclo}</strong></div>
+    <div><span>VITÓRIAS</span><strong>${run.vitorias}/${ALVO_VITORIAS}</strong></div>
+    <div><span>OURO</span><strong>${run.ouro}</strong></div>
+    <div><span>CORRUPÇÃO</span><strong>${run.corrupcao}</strong></div>
+    <div><span>DETERMINAÇÃO</span><strong>${run.determinacao}</strong></div>
+  </header>`;
+}
+function progresso() {
+    const nomes = ['ESCOLHA', 'ESCOLHA', 'CAÇADA', 'ESCOLHA', 'DUELO'];
+    return `<div class="run-progress">${nomes.map((n, i) => `<span class="${i < run.etapa ? 'done' : i === run.etapa ? 'current' : ''}">${n}</span>`).join('')}</div>`;
+}
+function equipamentoExtra() {
+    return `<section class="extras">
+    <div class="extra"><img src="assets/ui/reliquia-lua-negra.svg"><div><small>RELÍQUIA</small><b>Lua Negra</b><span>Todos os itens carregam 10% mais rápido. +3 Corrupção por ciclo.</span></div></div>
+    <div class="extra"><img src="assets/ui/familiar-corvo.svg"><div><small>FAMILIAR</small><b>Corvo de Carniça</b><span>A cada 9s, Marca o adversário por 4s.</span></div></div>
+  </section>`;
+}
+function cartaItem(id, indice, lutador, lado = 'jogador', tempo = 0) {
+    const def = ITENS[id];
+    const estado = lutador?.itens[indice];
+    const total = def.recarga * (estado?.multiplicadorRecarga ?? 1);
+    const pct = def.efeito && estado ? Math.max(0, Math.min(100, 100 * (1 - estado.restante / total))) : 100;
+    const nivel = lado === 'jogador' ? run.melhorias[indice] ?? 0 : 0;
+    const desabilitado = estado && estado.desabilitadoAte > tempo;
+    return `<article class="item-card ${classeRaridade(id)} ${desabilitado ? 'disabled' : ''}" data-index="${indice}" draggable="true">
+    <div class="item-top"><span>${def.categoria}</span><span>${def.raridade}</span></div>
+    <div class="item-symbol">${SIMBOLOS[id]}</div>
+    <b>${def.nome}${nivel ? ` +${nivel}` : ''}</b>
+    <div class="charge"><i style="width:${pct}%"></i></div>
+    <small>${def.descricao}</small>
+  </article>`;
+}
+function tabuleiroJogador(estado, interativo = false, tempo = 0) {
+    return `<section class="board-panel">
+    <div class="fighter-line"><div><small>O ERRANTE</small><strong>${estado ? Math.ceil(estado.vida) : run.vidaMax}/${run.vidaMax} VIDA</strong></div><b>${estado ? Math.round(estado.escudo) : 0} ESCUDO</b></div>
+    <div class="board-grid ${interativo ? 'interactive' : ''}">${run.itens.map((id, i) => cartaItem(id, i, estado, 'jogador', tempo)).join('')}</div>
+  </section>`;
+}
+function telaMenu() {
+    fundo('acampamento');
+    const save = carregar();
+    app.innerHTML = `<main class="screen menu-screen">
+    <div class="title-block"><div class="sigil">◈</div><h1>BLACK OATH</h1><p>Escolhas incertas. Combates automáticos. Todo poder cobra um preço.</p></div>
+    <div class="menu-actions"><button class="primary" id="nova">INICIAR JORNADA</button>${save ? '<button class="secondary" id="continuar">CONTINUAR JORNADA</button>' : ''}</div>
+    <small class="version">Protótipo jogável v0.3</small>
+  </main>`;
+    document.querySelector('#nova')?.addEventListener('click', () => { apagarSave(); run = novaRun(); iniciarCiclo(true); });
+    document.querySelector('#continuar')?.addEventListener('click', () => { const s = carregar(); if (!s)
+        return; run = s; retomar(); });
+}
+function iniciarCiclo(novo = false) {
+    run.etapa = 0;
+    run.juramento = null;
+    selecionado = null;
+    botPendente = null;
+    inteligenciaPendente = null;
+    if (!novo || run.ciclo === 1)
+        run.corrupcao = Math.min(100, run.cor
