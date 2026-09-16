@@ -1,0 +1,15 @@
+rias} vitória(s).`}</p><p class="summary">Corrupção: ${run.corrupcao} · Ouro: ${run.ouro}</p><button class="primary" id="nova">NOVA JORNADA</button><button class="secondary" id="menu">MENU</button></main>`;
+    document.querySelector('#nova')?.addEventListener('click', () => { apagarSave(); run = novaRun(); iniciarCiclo(true); });
+    document.querySelector('#menu')?.addEventListener('click', telaMenu);
+}
+function aviso(texto) {
+    const antigo = document.querySelector('.toast');
+    antigo?.remove();
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = texto;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 200); }, 1200);
+}
+telaMenu();
