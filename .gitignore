@@ -1,0 +1,7 @@
+.godot/
+**/.godot/
+pacotes/
+*.keystore
+*.log
+__pycache__/
+.DS_Store
