@@ -1,0 +1,3 @@
+:80px 1fr}.raven-big{width:80px;height:80px}.hud-top span{font-size:7px}.hud-top strong{font-size:12px}.enemy-board{gap:3px}.enemy-item{padding:5px 2px}.enemy-item>b{font-size:8px}
+}
+@media(max-width:380px){.choices,.oath-grid,.shop-grid{grid-template-columns:1fr}.choices .choice:last-child,.oath-grid .oath-card:last-child,.shop-grid .shop-item:last-child{grid-column:auto}.board-grid{grid-template-columns:repeat(2,1fr)}.item-card small{display:block}.hud-top>div{padding:6px 1px}.hud-top span{font-size:6px}.hud-top strong{font-size:11px}}
